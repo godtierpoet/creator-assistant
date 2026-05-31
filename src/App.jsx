@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const TONES = [
   { id: "flirty", label: "Flirty", hint: "💡 flirty: play with tension, low-effort styling, sweet teases, flattery." },
@@ -38,6 +38,35 @@ RULES:
 
 const GROQ_KEY = "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";
 
+const AVATAR_COLORS = [
+  "#ef4444","#f97316","#eab308","#22c55e","#06b6d4",
+  "#3b82f6","#8b5cf6","#ec4899","#14b8a6","#f43f5e"
+];
+
+const AVATAR_NAMES = [
+  "Nova","Zara","Kira","Mila","Sage","Luna","Aria","Nyx","Vex","Cleo",
+  "Jade","Skye","Remy","Tess","Bex","Faye","Iris","Lola","Mara","Quinn"
+];
+
+function generateUserId() {
+  return "u_" + Math.random().toString(36).slice(2, 10);
+}
+
+function getOrCreateUser() {
+  let id = sessionStorage.getItem("presence_id");
+  let name = sessionStorage.getItem("presence_name");
+  let color = sessionStorage.getItem("presence_color");
+  if (!id) {
+    id = generateUserId();
+    name = AVATAR_NAMES[Math.floor(Math.random() * AVATAR_NAMES.length)];
+    color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+    sessionStorage.setItem("presence_id", id);
+    sessionStorage.setItem("presence_name", name);
+    sessionStorage.setItem("presence_color", color);
+  }
+  return { id, name, color };
+}
+
 function parseReplies(text) {
   const lines = text.split("\n").filter(l => l.trim());
   const replies = [];
@@ -65,6 +94,78 @@ function CopyBtn({ text }) {
   );
 }
 
+// Live Presence Component
+function PresenceBar({ currentUser, onlineUsers }) {
+  const others = onlineUsers.filter(u => u.id !== currentUser.id);
+  const total = onlineUsers.length;
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      background: "#0d0d0d", border: "1px solid #1a1a1a",
+      borderRadius: "8px", padding: "8px 14px",
+      marginBottom: "12px"
+    }}>
+      {/* Pulse dot */}
+      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+        <div style={{
+          width: "8px", height: "8px", borderRadius: "50%", background: "#4ade80",
+          boxShadow: "0 0 6px #4ade80"
+        }} />
+      </div>
+      <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#555", letterSpacing: "1px" }}>
+        {total} ONLINE
+      </span>
+
+      {/* Avatars */}
+      <div style={{ display: "flex", alignItems: "center", marginLeft: "4px" }}>
+        {/* Current user first */}
+        <div title={`${currentUser.name} (you)`} style={{
+          width: "28px", height: "28px", borderRadius: "50%",
+          background: currentUser.color,
+          border: "2px solid #0a0a0a",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "11px", fontWeight: "700", color: "#000",
+          marginRight: "-6px", zIndex: 10,
+          cursor: "default", position: "relative",
+          boxShadow: "0 0 0 2px #4ade80"
+        }}>
+          {currentUser.name[0]}
+        </div>
+        {others.slice(0, 6).map((u, i) => (
+          <div key={u.id} title={u.name} style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: u.color,
+            border: "2px solid #0a0a0a",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "11px", fontWeight: "700", color: "#000",
+            marginRight: "-6px", zIndex: 9 - i,
+            cursor: "default", position: "relative",
+            animation: "fadeIn 0.4s ease"
+          }}>
+            {u.name[0]}
+          </div>
+        ))}
+        {others.length > 6 && (
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: "#222", border: "2px solid #0a0a0a",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "10px", color: "#888", marginRight: "-6px",
+            fontFamily: "monospace"
+          }}>
+            +{others.length - 6}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginLeft: "auto", fontSize: "11px", color: "#444", fontFamily: "monospace" }}>
+        YOU: <span style={{ color: currentUser.color }}>{currentUser.name}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [message, setMessage] = useState("");
   const [tone, setTone] = useState("flirty");
@@ -85,6 +186,11 @@ export default function App() {
   const [activeHistory, setActiveHistory] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Presence state
+  const currentUser = useRef(getOrCreateUser()).current;
+  const [onlineUsers, setOnlineUsers] = useState([currentUser]);
+  const presenceInterval = useRef(null);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
@@ -93,6 +199,55 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem("ca_history2", JSON.stringify(history.slice(0, 30))); }, [history]);
   useEffect(() => { localStorage.setItem("ca_pinned", JSON.stringify(pinned.slice(0, 20))); }, [pinned]);
+
+  // Presence: heartbeat using window.storage (shared)
+  useEffect(() => {
+    const heartbeat = async () => {
+      try {
+        const key = `presence:${currentUser.id}`;
+        const val = JSON.stringify({
+          id: currentUser.id,
+          name: currentUser.name,
+          color: currentUser.color,
+          ts: Date.now()
+        });
+        await window.storage.set(key, val, true);
+
+        // Read all presence keys
+        const listResult = await window.storage.list("presence:", true);
+        if (listResult && listResult.keys) {
+          const now = Date.now();
+          const activeUsers = [];
+          for (const k of listResult.keys) {
+            try {
+              const r = await window.storage.get(k, true);
+              if (r) {
+                const u = JSON.parse(r.value);
+                // Only count users active in last 20 seconds
+                if (now - u.ts < 20000) activeUsers.push(u);
+              }
+            } catch {}
+          }
+          setOnlineUsers(activeUsers.length > 0 ? activeUsers : [currentUser]);
+        }
+      } catch {}
+    };
+
+    heartbeat();
+    presenceInterval.current = setInterval(heartbeat, 8000);
+
+    // Remove self on unload
+    const cleanup = async () => {
+      try { await window.storage.delete(`presence:${currentUser.id}`, true); } catch {}
+    };
+    window.addEventListener("beforeunload", cleanup);
+
+    return () => {
+      clearInterval(presenceInterval.current);
+      window.removeEventListener("beforeunload", cleanup);
+      cleanup();
+    };
+  }, []);
 
   const toneObj = TONES.find(t => t.id === tone);
 
@@ -149,14 +304,11 @@ export default function App() {
         textarea:focus, input:focus { outline: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
       `}</style>
 
-      {/* MOBILE OVERLAY */}
       {isMobile && sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} style={{
-          position: "fixed", inset: 0, background: "#00000088", zIndex: 10
-        }} />
+        <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 10 }} />
       )}
 
       {/* SIDEBAR */}
@@ -271,9 +423,12 @@ export default function App() {
         </div>
 
         <div style={{ padding: isMobile ? "16px" : "24px 40px", flex: 1 }}>
+
+          {/* PRESENCE BAR */}
+          <PresenceBar currentUser={currentUser} onlineUsers={onlineUsers} />
+
           {/* Input Card */}
           <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", borderRadius: "10px", padding: isMobile ? "16px" : "24px", marginBottom: "16px" }}>
-            {/* Fan Message */}
             <div style={{ marginBottom: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
                 <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px" }}>INCOMING FAN TEXT</span>
@@ -290,7 +445,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tone */}
             <div style={{ marginBottom: "18px" }}>
               <div style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px", marginBottom: "8px" }}>TONE DIRECTION</div>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
@@ -301,14 +455,12 @@ export default function App() {
               {toneObj && <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: "5px", padding: "8px 12px", fontSize: "12px", color: "#666", fontStyle: "italic" }}>{toneObj.hint}</div>}
             </div>
 
-            {/* Custom Spec */}
             <div style={{ marginBottom: "18px" }}>
               <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px" }}>CUSTOM SPECS (OPTIONAL)</span>
               <input value={customSpec} onChange={e => setCustomSpec(e.target.value)} placeholder='e.g. "make it short", "use lowercase"'
                 style={{ width: "100%", marginTop: "8px", background: "#111", border: "1px solid #1e1e1e", color: "#888", fontSize: "13px", borderRadius: "5px", padding: "10px 14px", fontFamily: "Inter, sans-serif" }} />
             </div>
 
-            {/* Generate Button */}
             <div style={{ display: "flex", justifyContent: isMobile ? "center" : "flex-end" }}>
               <button onClick={generate} disabled={loading || !message.trim()} style={{ background: loading || !message.trim() ? "#1a1a1a" : "#e0e0e0", border: "1px solid " + (loading || !message.trim() ? "#2a2a2a" : "#e0e0e0"), color: loading || !message.trim() ? "#555" : "#000", borderRadius: "6px", padding: "12px 28px", cursor: loading || !message.trim() ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "monospace", letterSpacing: "1px", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s", width: isMobile ? "100%" : "auto", justifyContent: "center" }}>
                 {loading ? (<><span style={{ width: "12px", height: "12px", border: "2px solid #33333388", borderTopColor: "#888", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />GENERATING...</>) : "✦ GENERATE REPLIES"}
@@ -351,4 +503,3 @@ export default function App() {
     </div>
   );
 }
-
