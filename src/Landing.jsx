@@ -1,8 +1,4 @@
-import { useNavigate } from 'react-router-dom'
-
 export default function Landing() {
-  const navigate = useNavigate()
-
   return (
     <div style={{ background: '#080808', color: '#f0f0f0', fontFamily: "'DM Sans', sans-serif", minHeight: '100vh', overflowX: 'hidden', position: 'relative' }}>
       <style>{`
@@ -21,13 +17,9 @@ export default function Landing() {
         .feature { background: #111; padding: 28px 24px; display: flex; flex-direction: column; gap: 8px; }
       `}</style>
 
-      {/* Grid background */}
       <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(#1f1f1f 1px, transparent 1px), linear-gradient(90deg, #1f1f1f 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
-
-      {/* Glow */}
       <div style={{ position: 'fixed', top: '-200px', left: '50%', transform: 'translateX(-50%)', width: '700px', height: '500px', background: 'radial-gradient(ellipse, rgba(226,255,93,0.08) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
 
-      {/* NAV */}
       <nav style={{ position: 'relative', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid #1f1f1f', background: 'rgba(8,8,8,0.8)', backdropFilter: 'blur(12px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', background: '#e2ff5d', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '800', color: '#000' }}>✦</div>
@@ -42,9 +34,7 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* HERO */}
       <section style={{ position: 'relative', zIndex: 1, minHeight: 'calc(100vh - 73px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '60px 24px' }}>
-
         <div className="fade1" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(226,255,93,0.08)', border: '1px solid rgba(226,255,93,0.2)', color: '#e2ff5d', fontSize: '12px', padding: '6px 16px', borderRadius: '20px', fontFamily: 'monospace', letterSpacing: '1px', marginBottom: '36px' }}>
           ✦ AI-POWERED REPLY GENERATOR
         </div>
@@ -58,19 +48,18 @@ export default function Landing() {
         </p>
 
         <div className="fade4" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button
-            onClick={() => window.location.href = '/app'}
+          <a
+            href="/app"
             className="btn-primary"
-            style={{ background: '#e2ff5d', color: '#000', fontFamily: 'Syne, sans-serif', fontWeight: '700', fontSize: '15px', padding: '14px 32px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', letterSpacing: '0.5px' }}
+            style={{ background: '#e2ff5d', color: '#000', fontFamily: 'Syne, sans-serif', fontWeight: '700', fontSize: '15px', padding: '14px 32px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', letterSpacing: '0.5px', textDecoration: 'none' }}
           >
             Gamita Ko Kay Libre Rani 🤙
-          </button>
+          </a>
           <a href="#features" className="btn-secondary" style={{ background: 'transparent', color: '#666', fontFamily: 'DM Sans, sans-serif', fontSize: '14px', padding: '14px 24px', borderRadius: '8px', border: '1px solid #1f1f1f', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}>
             Tan-awa unsa ni
           </a>
         </div>
 
-        {/* FEATURES */}
         <div className="fade5" id="features" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1px', background: '#1f1f1f', borderRadius: '12px', overflow: 'hidden', marginTop: '60px', width: '100%', maxWidth: '900px' }}>
           {[
             { icon: '⚡', title: 'Instant Replies', desc: 'Generate 4 unique replies in under 2 seconds using Llama 3.3' },
@@ -87,7 +76,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* STATS */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '48px', justifyContent: 'center', flexWrap: 'wrap', padding: '48px 24px' }}>
         {[['4x','REPLIES PER GENERATE'], ['<2s','RESPONSE TIME'], ['5','TONE MODES'], ['∞','LIBRE FOREVER']].map(([num, label]) => (
           <div key={label} style={{ textAlign: 'center' }}>
@@ -97,7 +85,6 @@ export default function Landing() {
         ))}
       </div>
 
-      {/* FOOTER */}
       <footer style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '24px', borderTop: '1px solid #1f1f1f', fontSize: '12px', color: '#666', fontFamily: 'monospace' }}>
         © 2026 CDO Boys Chatter System · Powered by Llama Free · Para sa mga creators sa CDO
       </footer>
