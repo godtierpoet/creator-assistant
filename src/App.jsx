@@ -36,7 +36,7 @@ RULES:
 - Be creative and varied — each reply should take a different angle
 - Return ONLY the numbered replies, nothing else`;
 
-const OPENROUTER_KEY = "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";
+const GROQ_KEY = "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";
 
 function parseReplies(text) {
   const lines = text.split("\n").filter(l => l.trim());
@@ -93,14 +93,14 @@ export default function App() {
     setLoading(true); setError(""); setReplies([]); setActiveHistory(null);
     try {
       const userPrompt = `Fan message: "${m}"\n\nTone: ${TONE_PROMPTS[tone]}${customSpec ? `\n\nExtra instructions: ${customSpec}` : ""}\n\nPersona: ${personaName} — ${personaBio}`;
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENROUTER_KEY}`,
+          "Authorization": `Bearer ${GROQ_KEY}`,
         },
         body: JSON.stringify({
-          model: "mistralai/mistral-7b-instruct:free",
+          model: "llama-3.3-70b-versatile",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userPrompt }
