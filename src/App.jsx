@@ -229,8 +229,8 @@ export default function App() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-              <h1 style={{ fontSize: "26px", fontWeight: "700", color: "#fff", letterSpacing: "-0.5px" }}>Creator Assistant</h1>
-              <span style={{ background: "#111", border: "1px solid #2a2a2a", color: "#888", fontSize: "10px", padding: "3px 8px", borderRadius: "3px", fontFamily: "monospace", letterSpacing: "1px" }}>CHARMING CHATTER SYSTEM</span>
+              <h1 style={{ fontSize: "26px", fontWeight: "700", color: "#fff", letterSpacing: "-0.5px" }}>Opaw</h1>
+              <span style={{ background: "#111", border: "1px solid #2a2a2a", color: "#888", fontSize: "10px", padding: "3px 8px", borderRadius: "3px", fontFamily: "monospace", letterSpacing: "1px" }}>ANG MOVEMENTS NI OPAW</span>
             </div>
             <p style={{ fontSize: "13px", color: "#555", lineHeight: "1.5", maxWidth: "580px" }}>
               Paste the incoming fan message, set the tone direction, and copy natural human-sounding suggestions instantly.
