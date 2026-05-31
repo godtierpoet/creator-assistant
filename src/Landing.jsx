@@ -9,12 +9,6 @@ export default function Landing() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #080808; }
-        .grid-bg::before {
-          content: '';
-          position: fixed; inset: 0;
-          background-image: linear-gradient(#1f1f1f 1px, transparent 1px), linear-gradient(90deg, #1f1f1f 1px, transparent 1px);
-          background-size: 60px 60px; opacity: 0.4; pointer-events: none; z-index: 0;
-        }
         @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fade1 { animation: fadeUp 0.6s 0s ease both; }
@@ -28,7 +22,7 @@ export default function Landing() {
       `}</style>
 
       {/* Grid background */}
-      <div className="grid-bg" style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(#1f1f1f 1px, transparent 1px), linear-gradient(90deg, #1f1f1f 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(#1f1f1f 1px, transparent 1px), linear-gradient(90deg, #1f1f1f 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.4, pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Glow */}
       <div style={{ position: 'fixed', top: '-200px', left: '50%', transform: 'translateX(-50%)', width: '700px', height: '500px', background: 'radial-gradient(ellipse, rgba(226,255,93,0.08) 0%, transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
@@ -65,7 +59,7 @@ export default function Landing() {
 
         <div className="fade4" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button
-            onClick={() => window.location.href = 'https://creator-assistant-git-main-hashiramareign-8727s-projects.vercel.app/app'}
+            onClick={() => navigate('/app')}
             className="btn-primary"
             style={{ background: '#e2ff5d', color: '#000', fontFamily: 'Syne, sans-serif', fontWeight: '700', fontSize: '15px', padding: '14px 32px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', letterSpacing: '0.5px' }}
           >
@@ -82,7 +76,7 @@ export default function Landing() {
             { icon: '⚡', title: 'Instant Replies', desc: 'Generate 4 unique replies in under 2 seconds using Llama 3.3' },
             { icon: '🎭', title: '5 Tone Modes', desc: 'Flirty, Girlfriend, Teasing, Friendly, and Sales — pick your vibe' },
             { icon: '🟢', title: 'Live Presence', desc: 'Tan-awa kung kinsa ang online sa imong team in real time' },
-            { icon: '🆓', title: 'Libre Gyud', desc: 'Powered by Groq\'s free tier — walay bayad, walay limit' },
+            { icon: '🆓', title: 'Libre Gyud', desc: "Powered by Groq's free tier — walay bayad, walay limit" },
           ].map((f, i) => (
             <div key={i} className="feature">
               <div style={{ fontSize: '22px', marginBottom: '4px' }}>{f.icon}</div>
