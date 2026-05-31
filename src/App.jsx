@@ -147,7 +147,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
             <div style={{ width: "32px", height: "32px", background: "#1a1a1a", border: "1px solid #333", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>✦</div>
             <div>
-              <div style={{ fontWeight: "600", fontSize: "14px", color: "#fff" }}>Creator Assistant</div>
+              <div style={{ fontWeight: "600", fontSize: "14px", color: "#fff" }}>Cagayan De Oro Boys</div>
               <div style={{ fontSize: "11px", color: "#555", fontFamily: "monospace" }}>Powered by Llama 3.1 Free</div>
             </div>
           </div>
