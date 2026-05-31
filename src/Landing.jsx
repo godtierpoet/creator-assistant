@@ -65,7 +65,7 @@ export default function Landing() {
 
         <div className="fade4" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button
-            onClick={() => window.location.href = '/app'}
+            onClick={() => window.location.href = 'https://creator-assistant-git-main-hashiramareign-8727s-projects.vercel.app/app'}
             className="btn-primary"
             style={{ background: '#e2ff5d', color: '#000', fontFamily: 'Syne, sans-serif', fontWeight: '700', fontSize: '15px', padding: '14px 32px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', letterSpacing: '0.5px' }}
           >
