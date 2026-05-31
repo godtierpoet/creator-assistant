@@ -1,19 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 const TONES = [
-  { id: "flirty", label: "💋 Flirty", color: "#FF7EB6", desc: "Seductive, playful, teasing energy" },
-  { id: "girlfriend", label: "🥰 GF Vibe", color: "#FF9ECD", desc: "Warm, intimate, caring" },
-  { id: "teasing", label: "😈 Teasing", color: "#C084FC", desc: "Playful tease, keep them wanting more" },
-  { id: "friendly", label: "😊 Friendly", color: "#67E8F9", desc: "Warm, casual, approachable" },
-  { id: "sales", label: "💰 Sales/Upsell", color: "#86EFAC", desc: "Entice them to subscribe or buy" },
+  { id: "flirty", label: "Flirty", hint: "💡 flirty: play with tension, low-effort styling, sweet teases, flattery." },
+  { id: "girlfriend", label: "Girlfriend Vibe", hint: "💡 girlfriend vibe: warm, personal, intimate — like you're their special someone." },
+  { id: "teasing", label: "Teasing", hint: "💡 teasing: playful push-pull, keep them wanting more, witty comebacks." },
+  { id: "friendly", label: "Friendly", hint: "💡 friendly: casual, warm, approachable — like texting a close friend." },
+  { id: "sales", label: "Sales/Upsell", hint: "💡 sales/upsell: create FOMO, entice subtly, mention exclusive content naturally." },
 ];
 
+const QUICK_EXAMPLES = {
+  Morning: "Good morning! Just woke up thinking about you 😊",
+  Lonely: "I've been feeling really lonely lately, no one to talk to",
+  Verification: "Can you verify yourself? Send a pic with today's date",
+  Attachment: "I'm getting really attached to you, is that weird?",
+};
+
 const TONE_PROMPTS = {
-  flirty: "Generate 4 flirty, seductive, playful replies. Be suggestive but classy. Use a teasing, confident tone that makes the fan feel special and intrigued.",
-  girlfriend: "Generate 4 warm, girlfriend-vibe replies. Sound intimate, caring, and personal — like you're their special someone. Make them feel loved and valued.",
-  teasing: "Generate 4 playful teasing replies. Keep them on the edge, wanting more. Be witty and fun. Don't give too much away.",
-  friendly: "Generate 4 friendly, casual, warm replies. Sound like a real person having a fun conversation. Be approachable and genuine.",
-  sales: "Generate 4 replies that naturally upsell content or subscriptions. Be enticing without being pushy. Create FOMO and desire. Mention exclusive content naturally.",
+  flirty: "Generate 4 flirty, seductive, playful replies. Be suggestive but classy. Play with tension and flattery.",
+  girlfriend: "Generate 4 warm girlfriend-vibe replies. Sound intimate, caring, personal — like their special someone.",
+  teasing: "Generate 4 playful teasing replies. Push-pull dynamic. Keep them wanting more.",
+  friendly: "Generate 4 friendly, casual, warm replies. Sound like a real person, approachable and genuine.",
+  sales: "Generate 4 replies that naturally upsell content. Create FOMO and desire. Mention exclusive content naturally.",
 };
 
 const SYSTEM_PROMPT = `You are a professional OnlyFans chatter assistant helping creators craft natural, engaging, human-like replies to fan messages.
@@ -25,20 +32,11 @@ RULES:
 - No filler phrases like "Absolutely!", "Of course!", "Great question!"
 - Detect the fan's emotional tone and match/complement it
 - Each reply on a NEW LINE starting with a number and period (1. 2. 3. 4.)
-- Keep replies 1-3 sentences max unless the tone calls for more
-- NEVER use emojis unless the fan used them first
+- Keep replies 1-3 sentences max
 - Be creative and varied — each reply should take a different angle
-- Return ONLY the numbered replies, no intro or explanation text`;
+- Return ONLY the numbered replies, nothing else`;
 
-function buildPrompt(fanMessage, tone) {
-  return `Fan message: "${fanMessage}"
-
-Tone instruction: ${TONE_PROMPTS[tone]}
-
-Detected fan emotional vibe: analyze the message and match the energy appropriately.
-
-${SYSTEM_PROMPT}`;
-}
+const OPENROUTER_KEY = "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";
 
 function parseReplies(text) {
   const lines = text.split("\n").filter(l => l.trim());
@@ -50,473 +48,282 @@ function parseReplies(text) {
   return replies.length > 0 ? replies : [text.trim()];
 }
 
-function CopiedToast({ show }) {
-  return (
-    <span style={{
-      position: "absolute", top: "-32px", left: "50%", transform: "translateX(-50%)",
-      background: "#1a1a2e", color: "#86EFAC", fontSize: "11px", padding: "4px 10px",
-      borderRadius: "6px", border: "1px solid #86EFAC44", whiteSpace: "nowrap",
-      opacity: show ? 1 : 0, transition: "opacity 0.3s", pointerEvents: "none",
-      zIndex: 10
-    }}>Copied!</span>
-  );
-}
-
-function ReplyCard({ reply, index, isFavorite, onFavorite }) {
+function CopyBtn({ text }) {
   const [copied, setCopied] = useState(false);
-  const [hovering, setHovering] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(reply);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
-
   return (
-    <div
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
       style={{
-        background: hovering ? "#252535" : "#1E1E2E",
-        border: "1px solid #2A2A3E",
-        borderRadius: "12px",
-        padding: "14px 16px",
-        marginBottom: "10px",
-        transition: "all 0.2s ease",
-        transform: hovering ? "translateY(-1px)" : "none",
-        boxShadow: hovering ? "0 4px 20px rgba(76,154,255,0.08)" : "none",
+        background: copied ? "#1a3a1a" : "#1a1a1a",
+        border: "1px solid " + (copied ? "#4ade80" : "#333"),
+        color: copied ? "#4ade80" : "#888",
+        borderRadius: "4px", padding: "4px 10px", cursor: "pointer",
+        fontSize: "11px", fontFamily: "monospace", transition: "all 0.2s", flexShrink: 0
       }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-        <span style={{
-          background: "#4C9AFF22", color: "#4C9AFF", fontSize: "11px",
-          fontWeight: "600", padding: "2px 8px", borderRadius: "20px",
-          minWidth: "28px", textAlign: "center", marginTop: "1px", flexShrink: 0
-        }}>{index + 1}</span>
-        <p style={{
-          color: "#E5E5E5", fontSize: "14px", lineHeight: "1.6",
-          margin: 0, flex: 1, fontFamily: "'DM Sans', sans-serif"
-        }}>{reply}</p>
-        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-          <button
-            onClick={onFavorite}
-            title="Save to favorites"
-            style={{
-              background: isFavorite ? "#FF7EB622" : "transparent",
-              border: "1px solid " + (isFavorite ? "#FF7EB6" : "#333"),
-              color: isFavorite ? "#FF7EB6" : "#666",
-              borderRadius: "8px", padding: "5px 8px", cursor: "pointer",
-              fontSize: "13px", transition: "all 0.2s"
-            }}
-          >♥</button>
-          <div style={{ position: "relative" }}>
-            <CopiedToast show={copied} />
-            <button
-              onClick={handleCopy}
-              title="Copy reply (C)"
-              style={{
-                background: copied ? "#86EFAC22" : "#4C9AFF22",
-                border: "1px solid " + (copied ? "#86EFAC" : "#4C9AFF44"),
-                color: copied ? "#86EFAC" : "#4C9AFF",
-                borderRadius: "8px", padding: "5px 12px", cursor: "pointer",
-                fontSize: "12px", fontWeight: "600", transition: "all 0.2s",
-                fontFamily: "'DM Sans', sans-serif"
-              }}
-            >{copied ? "✓" : "Copy"}</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    >{copied ? "COPIED" : "COPY"}</button>
   );
 }
 
-function HistoryItem({ item, onSelect }) {
-  return (
-    <div
-      onClick={() => onSelect(item)}
-      style={{
-        padding: "10px 12px", borderRadius: "8px", cursor: "pointer",
-        background: "#1A1A2A", border: "1px solid #2A2A3E",
-        marginBottom: "6px", transition: "all 0.15s"
-      }}
-      onMouseEnter={e => e.currentTarget.style.background = "#252535"}
-      onMouseLeave={e => e.currentTarget.style.background = "#1A1A2A"}
-    >
-      <p style={{
-        color: "#999", fontSize: "11px", margin: "0 0 3px",
-        textTransform: "uppercase", letterSpacing: "0.5px"
-      }}>{item.tone} · {new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
-      <p style={{
-        color: "#C0C0D0", fontSize: "13px", margin: 0,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-      }}>{item.message}</p>
-    </div>
-  );
-}
-
-export default function CreatorAssistant() {
+export default function App() {
   const [message, setMessage] = useState("");
   const [tone, setTone] = useState("flirty");
+  const [customSpec, setCustomSpec] = useState("");
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [personaName, setPersonaName] = useState("My Persona");
+  const [personaBio, setPersonaBio] = useState('"playful, witty, charmingly modest, using subtle local texting accents"');
+  const [editingPersona, setEditingPersona] = useState(false);
   const [history, setHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ca_history") || "[]"); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem("ca_history2") || "[]"); } catch { return []; }
   });
-  const [favorites, setFavorites] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ca_favorites") || "[]"); } catch { return []; }
+  const [pinned, setPinned] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ca_pinned") || "[]"); } catch { return []; }
   });
-  const [favReplies, setFavReplies] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ca_fav_replies") || "[]"); } catch { return []; }
-  });
-  const [sidebarTab, setSidebarTab] = useState("history");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const textareaRef = useRef();
+  const [activeHistory, setActiveHistory] = useState(null);
 
-  useEffect(() => {
-    localStorage.setItem("ca_history", JSON.stringify(history.slice(0, 50)));
-  }, [history]);
-  useEffect(() => {
-    localStorage.setItem("ca_favorites", JSON.stringify(favorites));
-  }, [favorites]);
-  useEffect(() => {
-    localStorage.setItem("ca_fav_replies", JSON.stringify(favReplies.slice(0, 50)));
-  }, [favReplies]);
-
-  const generate = useCallback(async (msg, t) => {
-    const m = (msg || message).trim();
-    const to = t || tone;
-    if (!m) { setError("Paste a fan message first!"); return; }
-    setLoading(true);
-    setError("");
-    setReplies([]);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: "user", content: buildPrompt(m, to) }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.map(c => c.text || "").join("") || "";
-      const parsed = parseReplies(text);
-      setReplies(parsed);
-      const entry = { message: m, tone: to, replies: parsed, ts: Date.now(), id: Date.now() };
-      setHistory(h => [entry, ...h.filter(x => x.id !== entry.id)]);
-    } catch (e) {
-      setError("Generation failed. Please try again.");
-    }
-    setLoading(false);
-  }, [message, tone]);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") generate();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [generate]);
-
-  const toggleFavReply = (reply) => {
-    setFavReplies(prev =>
-      prev.includes(reply) ? prev.filter(r => r !== reply) : [reply, ...prev]
-    );
-  };
+  useEffect(() => { localStorage.setItem("ca_history2", JSON.stringify(history.slice(0, 30))); }, [history]);
+  useEffect(() => { localStorage.setItem("ca_pinned", JSON.stringify(pinned.slice(0, 20))); }, [pinned]);
 
   const toneObj = TONES.find(t => t.id === tone);
 
+  const generate = useCallback(async () => {
+    const m = message.trim();
+    if (!m) { setError("Paste a fan message first."); return; }
+    setLoading(true); setError(""); setReplies([]); setActiveHistory(null);
+    try {
+      const userPrompt = `Fan message: "${m}"\n\nTone: ${TONE_PROMPTS[tone]}${customSpec ? `\n\nExtra instructions: ${customSpec}` : ""}\n\nPersona: ${personaName} — ${personaBio}`;
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENROUTER_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.1-8b-instruct:free",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userPrompt }
+          ]
+        })
+      });
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      const parsed = parseReplies(text);
+      setReplies(parsed);
+      const entry = { id: Date.now(), message: m, tone, replies: parsed, ts: Date.now() };
+      setHistory(h => [entry, ...h]);
+    } catch (e) { setError("Generation failed. Try again."); }
+    setLoading(false);
+  }, [message, tone, customSpec, personaName, personaBio]);
+
+  useEffect(() => {
+    const h = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") generate(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [generate]);
+
+  const togglePin = (reply) => {
+    setPinned(p => p.includes(reply) ? p.filter(r => r !== reply) : [reply, ...p]);
+  };
+
+  const displayedReplies = activeHistory ? activeHistory.replies : replies;
+
   return (
-    <div style={{
-      display: "flex", height: "100vh", background: "#0F0F1A",
-      fontFamily: "'DM Sans', 'Segoe UI', sans-serif", overflow: "hidden",
-      color: "#E5E5E5"
-    }}>
-      {/* Google Font */}
+    <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#e0e0e0", fontFamily: "'Inter', 'Segoe UI', sans-serif", overflow: "hidden" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2A2A3E; border-radius: 4px; }
-        textarea:focus { outline: none; }
-        * { box-sizing: border-box; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes spin { to{transform:rotate(360deg)} }
+        ::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+        textarea:focus, input:focus { outline: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       {/* SIDEBAR */}
-      {sidebarOpen && (
-        <div style={{
-          width: "260px", minWidth: "260px", background: "#12121F",
-          borderRight: "1px solid #1E1E2E", display: "flex", flexDirection: "column",
-          transition: "all 0.3s"
-        }}>
-          <div style={{ padding: "18px 16px 12px", borderBottom: "1px solid #1E1E2E" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
-              <div style={{
-                width: "28px", height: "28px", borderRadius: "8px",
-                background: "linear-gradient(135deg, #FF7EB6, #4C9AFF)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "14px"
-              }}>✨</div>
-              <span style={{ fontFamily: "'Syne', sans-serif", fontSize: "15px", fontWeight: "700", color: "#fff" }}>
-                Creator Assistant
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: "4px" }}>
-              {["history", "favorites"].map(tab => (
-                <button key={tab} onClick={() => setSidebarTab(tab)} style={{
-                  flex: 1, padding: "6px 0", borderRadius: "7px", fontSize: "12px",
-                  fontWeight: "500", cursor: "pointer", border: "none", transition: "all 0.2s",
-                  background: sidebarTab === tab ? "#4C9AFF22" : "transparent",
-                  color: sidebarTab === tab ? "#4C9AFF" : "#666",
-                  borderBottom: sidebarTab === tab ? "2px solid #4C9AFF" : "2px solid transparent"
-                }}>
-                  {tab === "history" ? "📋 History" : "♥ Saved"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-            {sidebarTab === "history" && (
-              history.length === 0
-                ? <p style={{ color: "#444", fontSize: "13px", textAlign: "center", marginTop: "40px" }}>No history yet</p>
-                : history.map(item => (
-                  <HistoryItem key={item.id} item={item} onSelect={h => {
-                    setMessage(h.message);
-                    setTone(h.tone);
-                    setReplies(h.replies);
-                  }} />
-                ))
-            )}
-            {sidebarTab === "favorites" && (
-              favReplies.length === 0
-                ? <p style={{ color: "#444", fontSize: "13px", textAlign: "center", marginTop: "40px" }}>No saved replies yet</p>
-                : favReplies.map((r, i) => (
-                  <div key={i} style={{
-                    padding: "10px 12px", borderRadius: "8px",
-                    background: "#1A1A2A", border: "1px solid #2A2A3E", marginBottom: "6px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                      <p style={{ color: "#C0C0D0", fontSize: "13px", margin: 0, flex: 1, lineHeight: "1.5" }}>{r}</p>
-                      <button onClick={() => {
-                        navigator.clipboard.writeText(r);
-                      }} style={{
-                        background: "#4C9AFF22", border: "1px solid #4C9AFF44",
-                        color: "#4C9AFF", borderRadius: "6px", padding: "3px 8px",
-                        cursor: "pointer", fontSize: "11px", flexShrink: 0
-                      }}>Copy</button>
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
-          <div style={{ padding: "10px 12px", borderTop: "1px solid #1E1E2E" }}>
-            <p style={{ color: "#333", fontSize: "11px", textAlign: "center", margin: 0 }}>
-              Side assistant tool · Copy & paste manually
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* MAIN AREA */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* TOPBAR */}
-        <div style={{
-          padding: "12px 20px", borderBottom: "1px solid #1E1E2E",
-          display: "flex", alignItems: "center", gap: "12px",
-          background: "#0F0F1A"
-        }}>
-          <button onClick={() => setSidebarOpen(s => !s)} style={{
-            background: "#1E1E2E", border: "1px solid #2A2A3E", color: "#888",
-            borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "14px"
-          }}>☰</button>
-          <div>
-            <h1 style={{
-              fontFamily: "'Syne', sans-serif", fontSize: "16px", fontWeight: "700",
-              margin: 0, color: "#fff", letterSpacing: "0.3px"
-            }}>Reply Generator</h1>
-            <p style={{ margin: 0, fontSize: "11px", color: "#555" }}>
-              Ctrl+Enter to generate · Click copy to paste in CreatorHero
-            </p>
-          </div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: "6px", alignItems: "center" }}>
-            <span style={{
-              background: "#86EFAC22", color: "#86EFAC", fontSize: "11px",
-              padding: "3px 10px", borderRadius: "20px", border: "1px solid #86EFAC33"
-            }}>● Live</span>
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-
-          {/* TONE SELECTOR */}
-          <div>
-            <p style={{ color: "#777", fontSize: "12px", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-              Select Tone
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              {TONES.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setTone(t.id)}
-                  style={{
-                    padding: "8px 14px", borderRadius: "10px", cursor: "pointer",
-                    fontSize: "13px", fontWeight: "500", transition: "all 0.2s",
-                    border: tone === t.id ? `1px solid ${t.color}` : "1px solid #2A2A3E",
-                    background: tone === t.id ? `${t.color}15` : "#1A1A2A",
-                    color: tone === t.id ? t.color : "#888",
-                    transform: tone === t.id ? "translateY(-1px)" : "none",
-                    boxShadow: tone === t.id ? `0 0 12px ${t.color}22` : "none"
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {toneObj && (
-              <p style={{ color: "#555", fontSize: "12px", margin: "6px 0 0", fontStyle: "italic" }}>
-                {toneObj.desc}
-              </p>
-            )}
-          </div>
-
-          {/* FAN MESSAGE INPUT */}
-          <div>
-            <p style={{ color: "#777", fontSize: "12px", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-              Fan Message
-            </p>
-            <div style={{
-              background: "#1A1A2A", border: "1px solid #2A2A3E",
-              borderRadius: "12px", padding: "4px",
-              transition: "border-color 0.2s"
-            }}>
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder="Paste the fan's message here..."
-                rows={4}
-                style={{
-                  width: "100%", background: "transparent", border: "none",
-                  color: "#E5E5E5", fontSize: "14px", lineHeight: "1.6",
-                  resize: "vertical", padding: "10px 12px",
-                  fontFamily: "'DM Sans', sans-serif", minHeight: "90px"
-                }}
-              />
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "6px 10px 8px", borderTop: "1px solid #1E1E2E"
-              }}>
-                <span style={{ color: "#444", fontSize: "12px" }}>
-                  {message.length > 0 ? `${message.length} chars` : "Paste fan message above"}
-                </span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  {message && (
-                    <button
-                      onClick={() => { setMessage(""); setReplies([]); setError(""); textareaRef.current?.focus(); }}
-                      style={{
-                        background: "transparent", border: "1px solid #333", color: "#666",
-                        borderRadius: "7px", padding: "5px 10px", cursor: "pointer", fontSize: "12px"
-                      }}
-                    >Clear</button>
-                  )}
-                  <button
-                    onClick={() => generate()}
-                    disabled={loading || !message.trim()}
-                    style={{
-                      background: loading ? "#1E1E2E" : "linear-gradient(135deg, #4C9AFF, #7C3AFF)",
-                      border: "none", color: "#fff", borderRadius: "8px",
-                      padding: "7px 18px", cursor: loading || !message.trim() ? "not-allowed" : "pointer",
-                      fontSize: "13px", fontWeight: "600", transition: "all 0.2s",
-                      opacity: !message.trim() ? 0.5 : 1,
-                      display: "flex", alignItems: "center", gap: "6px"
-                    }}
-                  >
-                    {loading ? (
-                      <>
-                        <span style={{ width: "12px", height: "12px", border: "2px solid #ffffff44", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
-                        Generating...
-                      </>
-                    ) : "✨ Generate Replies"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ERROR */}
-          {error && (
-            <div style={{
-              background: "#FF4C4C15", border: "1px solid #FF4C4C44", borderRadius: "10px",
-              padding: "10px 14px", color: "#FF7070", fontSize: "13px"
-            }}>{error}</div>
-          )}
-
-          {/* LOADING SKELETON */}
-          {loading && (
+      <div style={{ width: "300px", minWidth: "300px", background: "#0d0d0d", borderRight: "1px solid #1a1a1a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "18px 16px", borderBottom: "1px solid #1a1a1a" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+            <div style={{ width: "32px", height: "32px", background: "#1a1a1a", border: "1px solid #333", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>✦</div>
             <div>
-              <p style={{ color: "#777", fontSize: "12px", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                Generating Replies...
-              </p>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} style={{
-                  background: "#1E1E2E", borderRadius: "12px", padding: "14px 16px",
-                  marginBottom: "10px", animation: "pulse 1.5s ease-in-out infinite",
-                  animationDelay: `${i * 0.1}s`
-                }}>
-                  <div style={{ height: "12px", background: "#2A2A3E", borderRadius: "6px", width: `${65 + i * 8}%` }} />
-                  <div style={{ height: "12px", background: "#2A2A3E", borderRadius: "6px", width: "45%", marginTop: "8px" }} />
+              <div style={{ fontWeight: "600", fontSize: "14px", color: "#fff" }}>Creator Assistant</div>
+              <div style={{ fontSize: "11px", color: "#555", fontFamily: "monospace" }}>Powered by Llama 3.1 Free</div>
+            </div>
+          </div>
+          <button onClick={() => { setMessage(""); setReplies([]); setError(""); setActiveHistory(null); }} style={{
+            width: "100%", marginTop: "12px", padding: "8px 0", background: "#111", border: "1px solid #2a2a2a",
+            color: "#aaa", borderRadius: "6px", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
+          }}>+ New Chat</button>
+        </div>
+
+        {/* Persona */}
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a1a" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <span style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", letterSpacing: "1px" }}>◉ PERSONA CONFIG</span>
+            <button onClick={() => setEditingPersona(e => !e)} style={{ background: "none", border: "none", color: "#666", fontSize: "11px", cursor: "pointer" }}>⚙ Edit</button>
+          </div>
+          {editingPersona ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <input value={personaName} onChange={e => setPersonaName(e.target.value)}
+                style={{ background: "#111", border: "1px solid #2a2a2a", color: "#e0e0e0", borderRadius: "4px", padding: "6px 8px", fontSize: "13px" }} />
+              <textarea value={personaBio} onChange={e => setPersonaBio(e.target.value)} rows={2}
+                style={{ background: "#111", border: "1px solid #2a2a2a", color: "#aaa", borderRadius: "4px", padding: "6px 8px", fontSize: "12px", resize: "none" }} />
+              <button onClick={() => setEditingPersona(false)} style={{ background: "#1a1a1a", border: "1px solid #333", color: "#aaa", borderRadius: "4px", padding: "5px", cursor: "pointer", fontSize: "12px" }}>Save</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontWeight: "600", fontSize: "15px", color: "#e0e0e0", marginBottom: "4px" }}>{personaName}</div>
+              <div style={{ fontSize: "12px", color: "#666", lineHeight: "1.4" }}>{personaBio}</div>
+            </>
+          )}
+        </div>
+
+        {/* Pinned */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a1a" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", letterSpacing: "1px" }}>PINNED RESPONSES ({pinned.length})</span>
+          </div>
+          {pinned.length === 0 ? (
+            <p style={{ fontSize: "11px", color: "#444", lineHeight: "1.5" }}>Click the ☆ on any reply to pin it here for quick access.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "100px", overflowY: "auto" }}>
+              {pinned.map((r, i) => (
+                <div key={i} style={{ fontSize: "12px", color: "#888", padding: "4px 0", borderBottom: "1px solid #1a1a1a", display: "flex", justifyContent: "space-between", gap: "8px" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r}</span>
+                  <CopyBtn text={r} />
                 </div>
               ))}
             </div>
           )}
+        </div>
 
-          {/* REPLIES */}
-          {!loading && replies.length > 0 && (
-            <div style={{ animation: "slideUp 0.3s ease" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <p style={{ color: "#777", fontSize: "12px", margin: 0, textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                  {replies.length} Replies · {toneObj?.label}
-                </p>
-                <button
-                  onClick={() => generate()}
-                  style={{
-                    background: "transparent", border: "1px solid #2A2A3E",
-                    color: "#666", borderRadius: "7px", padding: "4px 12px",
-                    cursor: "pointer", fontSize: "12px", transition: "all 0.2s"
-                  }}
-                  onMouseEnter={e => { e.target.style.color = "#4C9AFF"; e.target.style.borderColor = "#4C9AFF44"; }}
-                  onMouseLeave={e => { e.target.style.color = "#666"; e.target.style.borderColor = "#2A2A3E"; }}
-                >↻ Regenerate</button>
+        {/* History */}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "12px 16px 8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", letterSpacing: "1px" }}>PAST GENERATIONS ({history.length})</span>
+            <button onClick={() => setHistory([])} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "13px" }}>↺</button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 12px" }}>
+            {history.map(item => (
+              <div key={item.id} onClick={() => { setActiveHistory(item); setMessage(item.message); setTone(item.tone); }}
+                style={{ padding: "8px 10px", borderRadius: "6px", cursor: "pointer", marginBottom: "4px", background: activeHistory?.id === item.id ? "#1a1a1a" : "transparent", border: "1px solid " + (activeHistory?.id === item.id ? "#2a2a2a" : "transparent"), transition: "all 0.15s" }}
+                onMouseEnter={e => { if (activeHistory?.id !== item.id) e.currentTarget.style.background = "#111"; }}
+                onMouseLeave={e => { if (activeHistory?.id !== item.id) e.currentTarget.style.background = "transparent"; }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                  <span style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", fontSize: "10px", padding: "1px 6px", borderRadius: "3px", fontFamily: "monospace" }}>
+                    {TONES.find(t => t.id === item.tone)?.label}
+                  </span>
+                  <span style={{ fontSize: "10px", color: "#444" }}>{new Date(item.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+                <div style={{ fontSize: "12px", color: "#777", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.message}</div>
               </div>
-              {replies.map((reply, i) => (
-                <ReplyCard
-                  key={i}
-                  index={i}
-                  reply={reply}
-                  isFavorite={favReplies.includes(reply)}
-                  onFavorite={() => toggleFavReply(reply)}
-                />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+              <h1 style={{ fontSize: "26px", fontWeight: "700", color: "#fff", letterSpacing: "-0.5px" }}>Creator Assistant</h1>
+              <span style={{ background: "#111", border: "1px solid #2a2a2a", color: "#888", fontSize: "10px", padding: "3px 8px", borderRadius: "3px", fontFamily: "monospace", letterSpacing: "1px" }}>CHARMING CHATTER SYSTEM</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "#555", lineHeight: "1.5", maxWidth: "580px" }}>
+              Paste the incoming fan message, set the tone direction, and copy natural human-sounding suggestions instantly.
+            </p>
+          </div>
+          <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: "6px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#4ade80" }} />
+            <span style={{ fontFamily: "monospace", fontSize: "12px", color: "#888" }}>llama-3.1-free</span>
+          </div>
+        </div>
+
+        {/* Input Card */}
+        <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", borderRadius: "10px", padding: "24px", marginBottom: "16px" }}>
+          {/* Fan Message */}
+          <div style={{ marginBottom: "22px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px" }}>INCOMING FAN TEXT</span>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", color: "#444", marginRight: "4px" }}>Quick examples:</span>
+                {Object.keys(QUICK_EXAMPLES).map(k => (
+                  <button key={k} onClick={() => setMessage(QUICK_EXAMPLES[k])} style={{ background: "#111", border: "1px solid #2a2a2a", color: "#777", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "11px" }}>{k}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ position: "relative" }}>
+              <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Paste fan message here..." rows={4}
+                style={{ width: "100%", background: "#111", border: "1px solid #1e1e1e", color: "#e0e0e0", fontSize: "14px", lineHeight: "1.6", borderRadius: "6px", padding: "12px 14px", resize: "vertical", fontFamily: "Inter, sans-serif", minHeight: "90px" }} />
+              <span style={{ position: "absolute", bottom: "10px", right: "12px", fontSize: "11px", color: "#333", fontFamily: "monospace" }}>CHARS: {message.length}</span>
+            </div>
+          </div>
+
+          {/* Tone */}
+          <div style={{ marginBottom: "22px" }}>
+            <div style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px", marginBottom: "10px" }}>TONE TARGET DIRECTION</div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+              {TONES.map(t => (
+                <button key={t.id} onClick={() => setTone(t.id)} style={{ padding: "8px 20px", borderRadius: "5px", cursor: "pointer", fontSize: "13px", fontWeight: tone === t.id ? "600" : "400", transition: "all 0.15s", border: "1px solid", background: tone === t.id ? "#fff" : "#111", borderColor: tone === t.id ? "#fff" : "#2a2a2a", color: tone === t.id ? "#000" : "#777" }}>{t.label}</button>
               ))}
             </div>
-          )}
+            {toneObj && <div style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: "5px", padding: "8px 12px", fontSize: "12px", color: "#666", fontStyle: "italic" }}>{toneObj.hint}</div>}
+          </div>
 
-          {/* EMPTY STATE */}
-          {!loading && replies.length === 0 && !error && (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "#333" }}>
-              <div style={{ fontSize: "40px", marginBottom: "12px" }}>💬</div>
-              <p style={{ fontSize: "15px", color: "#444", margin: "0 0 6px" }}>Ready to generate replies</p>
-              <p style={{ fontSize: "13px", color: "#333", margin: 0 }}>
-                Paste a fan message, choose a tone, and hit Generate
-              </p>
+          {/* Custom Spec */}
+          <div style={{ marginBottom: "22px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px" }}>CUSTOM SPECIFICATIONS (OPTIONAL)</span>
+              <span style={{ fontSize: "11px", color: "#444", fontStyle: "italic" }}>e.g. "make it short", "use lowercase"</span>
             </div>
-          )}
+            <input value={customSpec} onChange={e => setCustomSpec(e.target.value)} placeholder="e.g. keep sentences short; use no emojis; sound a bit sleepy"
+              style={{ width: "100%", background: "#111", border: "1px solid #1e1e1e", color: "#888", fontSize: "13px", borderRadius: "5px", padding: "10px 14px", fontFamily: "Inter, sans-serif" }} />
+          </div>
+
+          {/* Generate */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", color: "#444" }}>ⓘ Returns 3–5 conversational reply options. Ctrl+Enter to generate.</span>
+            <button onClick={generate} disabled={loading || !message.trim()} style={{ background: loading || !message.trim() ? "#1a1a1a" : "#e0e0e0", border: "1px solid " + (loading || !message.trim() ? "#2a2a2a" : "#e0e0e0"), color: loading || !message.trim() ? "#555" : "#000", borderRadius: "6px", padding: "10px 22px", cursor: loading || !message.trim() ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "monospace", letterSpacing: "1px", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s" }}>
+              {loading ? (<><span style={{ width: "11px", height: "11px", border: "2px solid #33333388", borderTopColor: "#888", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />GENERATING...</>) : "✦ GENERATE REPLIES"}
+            </button>
+          </div>
+          {error && <div style={{ marginTop: "10px", color: "#f87171", fontSize: "12px" }}>{error}</div>}
         </div>
+
+        {/* Replies */}
+        {displayedReplies.length > 0 && (
+          <div style={{ background: "#0f0f0f", border: "1px solid #1e1e1e", borderRadius: "10px", padding: "24px", animation: "fadeIn 0.3s ease" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#666", letterSpacing: "1px" }}>SUGGESTED REPLIES ({displayedReplies.length})</span>
+              <button onClick={generate} style={{ background: "none", border: "1px solid #2a2a2a", color: "#666", borderRadius: "4px", padding: "4px 12px", cursor: "pointer", fontSize: "11px", fontFamily: "monospace" }}>↺ REGENERATE</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {displayedReplies.map((reply, i) => (
+                <div key={i} style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: "7px", padding: "14px 16px", display: "flex", alignItems: "flex-start", gap: "12px" }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = "#2a2a2a"}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = "#1e1e1e"}
+                >
+                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#444", minWidth: "18px", marginTop: "2px" }}>{i + 1}.</span>
+                  <p style={{ flex: 1, fontSize: "14px", color: "#ccc", lineHeight: "1.6" }}>{reply}</p>
+                  <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                    <button onClick={() => togglePin(reply)} style={{ background: pinned.includes(reply) ? "#1a1a0a" : "none", border: "1px solid " + (pinned.includes(reply) ? "#555" : "#2a2a2a"), color: pinned.includes(reply) ? "#dd4" : "#555", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "13px" }}>☆</button>
+                    <CopyBtn text={reply} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && displayedReplies.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#2a2a2a" }}>
+            <div style={{ fontSize: "36px", marginBottom: "12px" }}>◻</div>
+            <p style={{ fontSize: "13px", fontFamily: "monospace" }}>NO REPLIES GENERATED YET</p>
+          </div>
+        )}
       </div>
     </div>
   );
