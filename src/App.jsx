@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import Landing from "./Landing";
 
 const TONES = [
   { id: "flirty", label: "Flirty", hint: "💡 flirty: play with tension, low-effort styling, sweet teases, flattery." },
@@ -166,7 +167,7 @@ function PresenceBar({ currentUser, onlineUsers }) {
   );
 }
 
-export default function App() {
+function ChatApp() {
   const [message, setMessage] = useState("");
   const [tone, setTone] = useState("flirty");
   const [customSpec, setCustomSpec] = useState("");
@@ -502,4 +503,17 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+export default function App() {
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  if (hash === "#/app") return <ChatApp />;
+  return <Landing />;
 }
