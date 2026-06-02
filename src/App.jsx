@@ -38,30 +38,119 @@ RULES:
 - Be creative and varied — each reply should take a different angle
 - Return ONLY the numbered replies, nothing else`;
 
-const GROQ_KEY = "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";
+// ── API KEYS ──
+const GROQ_KEY     = "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";
+const GEMINI_KEY   = "AQ.Ab8RN6L44tgtCSeTJakhPVSuy7qU8kRu0gBCoL_ellW-kkGdMA";
+const MISTRAL_KEY  = "r7ph3Zh7nBnWgxwVwY0nOr8mQDnICxpN";
+const COHERE_KEY   = "TH5xaJ4hWt4EzqrC3k3rS1vHLXpUe7nyIVQr0qtM";
+const DEEPSEEK_KEY = "sk-5a166121fcee4c8eb0f0e2085f7f3e3d";
 
-// Model → API config mapping (only Groq models work for free)
-const MODEL_API_MAP = {
-  "llama-4-maverick": { model: "meta-llama/llama-4-maverick-17b-128e-instruct" },
-  "llama-4-scout":    { model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-  "mixtral-8x22b":    { model: "mixtral-8x7b-32768" },
-  // All others fall back to llama-3.3
+// ── Model → provider + model string ──
+const MODEL_CONFIG = {
+  // GROQ (Llama / Mixtral)
+  "llama-4-maverick": { provider: "groq",     model: "meta-llama/llama-4-maverick-17b-128e-instruct" },
+  "llama-4-scout":    { provider: "groq",     model: "meta-llama/llama-4-scout-17b-16e-instruct" },
+  "mixtral-8x22b":    { provider: "groq",     model: "mixtral-8x7b-32768" },
+  // GEMINI
+  "gemini-2-5-pro":   { provider: "gemini",   model: "gemini-2.0-flash" },
+  "gemini-2-5-flash": { provider: "gemini",   model: "gemini-2.0-flash" },
+  // MISTRAL
+  "mistral-large":    { provider: "mistral",  model: "mistral-large-latest" },
+  // COHERE
+  "command-r-plus":   { provider: "cohere",   model: "command-r-plus" },
+  // DEEPSEEK
+  "deepseek-v3":      { provider: "deepseek", model: "deepseek-chat" },
+  "deepseek-r1":      { provider: "deepseek", model: "deepseek-reasoner" },
 };
-const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_CONFIG = { provider: "groq", model: "llama-3.3-70b-versatile" };
 
-const AVATAR_COLORS = [
-  "#ef4444","#f97316","#eab308","#22c55e","#06b6d4",
-  "#3b82f6","#8b5cf6","#ec4899","#14b8a6","#f43f5e"
-];
+// ── Unified generate function per provider ──
+async function callModel(modelId, systemPrompt, userPrompt) {
+  const config = MODEL_CONFIG[modelId] || DEFAULT_CONFIG;
 
-const AVATAR_NAMES = [
-  "Nova","Zara","Kira","Mila","Sage","Luna","Aria","Nyx","Vex","Cleo",
-  "Jade","Skye","Remy","Tess","Bex","Faye","Iris","Lola","Mara","Quinn"
-];
+  // GROQ — OpenAI-compatible
+  if (config.provider === "groq") {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
 
-function generateUserId() {
-  return "u_" + Math.random().toString(36).slice(2, 10);
+  // GEMINI — Google Generative AI REST
+  if (config.provider === "gemini") {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
+          generationConfig: { temperature: 0.9, maxOutputTokens: 1024 }
+        })
+      }
+    );
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  // MISTRAL — OpenAI-compatible
+  if (config.provider === "mistral") {
+    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${MISTRAL_KEY}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  // COHERE — Chat endpoint
+  if (config.provider === "cohere") {
+    const res = await fetch("https://api.cohere.com/v2/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${COHERE_KEY}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+    const data = await res.json();
+    return data.message?.content?.[0]?.text || data.text || "";
+  }
+
+  // DEEPSEEK — OpenAI-compatible
+  if (config.provider === "deepseek") {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${DEEPSEEK_KEY}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  return "";
 }
+
+const AVATAR_COLORS = ["#ef4444","#f97316","#eab308","#22c55e","#06b6d4","#3b82f6","#8b5cf6","#ec4899","#14b8a6","#f43f5e"];
+const AVATAR_NAMES  = ["Nova","Zara","Kira","Mila","Sage","Luna","Aria","Nyx","Vex","Cleo","Jade","Skye","Remy","Tess","Bex","Faye","Iris","Lola","Mara","Quinn"];
+
+function generateUserId() { return "u_" + Math.random().toString(36).slice(2, 10); }
 
 function getOrCreateUser() {
   let id = sessionStorage.getItem("presence_id");
@@ -93,14 +182,7 @@ function CopyBtn({ text }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      style={{
-        background: copied ? "#1a3a1a" : "#1a1a1a",
-        border: "1px solid " + (copied ? "#4ade80" : "#333"),
-        color: copied ? "#4ade80" : "#888",
-        borderRadius: "4px", padding: "6px 12px", cursor: "pointer",
-        fontSize: "12px", fontFamily: "monospace", transition: "all 0.2s", flexShrink: 0,
-        minWidth: "60px"
-      }}
+      style={{ background: copied ? "#1a3a1a" : "#1a1a1a", border: "1px solid " + (copied ? "#4ade80" : "#333"), color: copied ? "#4ade80" : "#888", borderRadius: "4px", padding: "6px 12px", cursor: "pointer", fontSize: "12px", fontFamily: "monospace", transition: "all 0.2s", flexShrink: 0, minWidth: "60px" }}
     >{copied ? "✓ COPIED" : "COPY"}</button>
   );
 }
@@ -108,31 +190,19 @@ function CopyBtn({ text }) {
 function PresenceBar({ currentUser, onlineUsers }) {
   const others = onlineUsers.filter(u => u.id !== currentUser.id);
   const total = onlineUsers.length;
-
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: "10px",
-      background: "#0d0d0d", border: "1px solid #1a1a1a",
-      borderRadius: "8px", padding: "8px 14px", marginBottom: "12px"
-    }}>
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 6px #4ade80" }} />
-      </div>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: "8px", padding: "8px 14px", marginBottom: "12px" }}>
+      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 6px #4ade80" }} />
       <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#555", letterSpacing: "1px" }}>{total} ONLINE</span>
       <div style={{ display: "flex", alignItems: "center", marginLeft: "4px" }}>
-        <div title={`${currentUser.name} (you)`} style={{ width: "28px", height: "28px", borderRadius: "50%", background: currentUser.color, border: "2px solid #0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", color: "#000", marginRight: "-6px", zIndex: 10, cursor: "default", position: "relative", boxShadow: "0 0 0 2px #4ade80" }}>
+        <div title={`${currentUser.name} (you)`} style={{ width: "28px", height: "28px", borderRadius: "50%", background: currentUser.color, border: "2px solid #0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", color: "#000", marginRight: "-6px", zIndex: 10, position: "relative", boxShadow: "0 0 0 2px #4ade80" }}>
           {currentUser.name[0]}
         </div>
         {others.slice(0, 6).map((u, i) => (
-          <div key={u.id} title={u.name} style={{ width: "28px", height: "28px", borderRadius: "50%", background: u.color, border: "2px solid #0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", color: "#000", marginRight: "-6px", zIndex: 9 - i, cursor: "default", position: "relative" }}>
+          <div key={u.id} title={u.name} style={{ width: "28px", height: "28px", borderRadius: "50%", background: u.color, border: "2px solid #0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", color: "#000", marginRight: "-6px", zIndex: 9 - i, position: "relative" }}>
             {u.name[0]}
           </div>
         ))}
-        {others.length > 6 && (
-          <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#222", border: "2px solid #0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#888", marginRight: "-6px", fontFamily: "monospace" }}>
-            +{others.length - 6}
-          </div>
-        )}
       </div>
       <div style={{ marginLeft: "auto", fontSize: "11px", color: "#444", fontFamily: "monospace" }}>
         YOU: <span style={{ color: currentUser.color }}>{currentUser.name}</span>
@@ -142,25 +212,21 @@ function PresenceBar({ currentUser, onlineUsers }) {
 }
 
 function ChatApp() {
-  const [message, setMessage] = useState("");
-  const [tone, setTone] = useState("flirty");
-  const [customSpec, setCustomSpec] = useState("");
+  const [message, setMessage]         = useState("");
+  const [tone, setTone]               = useState("flirty");
+  const [customSpec, setCustomSpec]   = useState("");
   const [selectedModel, setSelectedModel] = useState("llama-4-maverick");
-  const [replies, setReplies] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [replies, setReplies]         = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
   const [personaName, setPersonaName] = useState("My Persona");
-  const [personaBio, setPersonaBio] = useState('"playful, witty, charmingly modest, using subtle local texting accents"');
+  const [personaBio, setPersonaBio]   = useState('"playful, witty, charmingly modest, using subtle local texting accents"');
   const [editingPersona, setEditingPersona] = useState(false);
-  const [history, setHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ca_history2") || "[]"); } catch { return []; }
-  });
-  const [pinned, setPinned] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ca_pinned") || "[]"); } catch { return []; }
-  });
+  const [history, setHistory]         = useState(() => { try { return JSON.parse(localStorage.getItem("ca_history2") || "[]"); } catch { return []; } });
+  const [pinned, setPinned]           = useState(() => { try { return JSON.parse(localStorage.getItem("ca_pinned") || "[]"); } catch { return []; } });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeHistory, setActiveHistory] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile]       = useState(window.innerWidth < 768);
 
   const currentUser = useRef(getOrCreateUser()).current;
   const [onlineUsers, setOnlineUsers] = useState([currentUser]);
@@ -173,25 +239,20 @@ function ChatApp() {
   }, []);
 
   useEffect(() => { localStorage.setItem("ca_history2", JSON.stringify(history.slice(0, 30))); }, [history]);
-  useEffect(() => { localStorage.setItem("ca_pinned", JSON.stringify(pinned.slice(0, 20))); }, [pinned]);
+  useEffect(() => { localStorage.setItem("ca_pinned",   JSON.stringify(pinned.slice(0, 20))); }, [pinned]);
 
   useEffect(() => {
     const heartbeat = async () => {
       try {
-        const key = `presence:${currentUser.id}`;
-        const val = JSON.stringify({ id: currentUser.id, name: currentUser.name, color: currentUser.color, ts: Date.now() });
-        await window.storage.set(key, val, true);
+        await window.storage.set(`presence:${currentUser.id}`, JSON.stringify({ id: currentUser.id, name: currentUser.name, color: currentUser.color, ts: Date.now() }), true);
         const listResult = await window.storage.list("presence:", true);
-        if (listResult && listResult.keys) {
+        if (listResult?.keys) {
           const now = Date.now();
-          const activeUsers = [];
+          const active = [];
           for (const k of listResult.keys) {
-            try {
-              const r = await window.storage.get(k, true);
-              if (r) { const u = JSON.parse(r.value); if (now - u.ts < 20000) activeUsers.push(u); }
-            } catch {}
+            try { const r = await window.storage.get(k, true); if (r) { const u = JSON.parse(r.value); if (now - u.ts < 20000) active.push(u); } } catch {}
           }
-          setOnlineUsers(activeUsers.length > 0 ? activeUsers : [currentUser]);
+          setOnlineUsers(active.length > 0 ? active : [currentUser]);
         }
       } catch {}
     };
@@ -210,23 +271,14 @@ function ChatApp() {
     setLoading(true); setError(""); setReplies([]); setActiveHistory(null);
     if (isMobile) setSidebarOpen(false);
     try {
-      const groqModel = MODEL_API_MAP[selectedModel]?.model || DEFAULT_GROQ_MODEL;
       const userPrompt = `Fan message: "${m}"\n\nTone: ${TONE_PROMPTS[tone]}${customSpec ? `\n\nExtra instructions: ${customSpec}` : ""}\n\nPersona: ${personaName} — ${personaBio}`;
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
-        body: JSON.stringify({
-          model: groqModel,
-          messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userPrompt }]
-        })
-      });
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content || "";
+      const text = await callModel(selectedModel, SYSTEM_PROMPT, userPrompt);
       const parsed = parseReplies(text);
       setReplies(parsed);
-      const entry = { id: Date.now(), message: m, tone, model: selectedModel, replies: parsed, ts: Date.now() };
-      setHistory(h => [entry, ...h]);
-    } catch (e) { setError("Generation failed. Try again."); }
+      setHistory(h => [{ id: Date.now(), message: m, tone, model: selectedModel, replies: parsed, ts: Date.now() }, ...h]);
+    } catch (e) {
+      setError("Generation failed. Try again or switch models.");
+    }
     setLoading(false);
   }, [message, tone, customSpec, personaName, personaBio, isMobile, selectedModel]);
 
@@ -236,10 +288,7 @@ function ChatApp() {
     return () => window.removeEventListener("keydown", h);
   }, [generate]);
 
-  const togglePin = (reply) => {
-    setPinned(p => p.includes(reply) ? p.filter(r => r !== reply) : [reply, ...p]);
-  };
-
+  const togglePin = (reply) => setPinned(p => p.includes(reply) ? p.filter(r => r !== reply) : [reply, ...p]);
   const displayedReplies = activeHistory ? activeHistory.replies : replies;
 
   return (
@@ -257,9 +306,7 @@ function ChatApp() {
         @keyframes tooltipIn { from { opacity: 0; transform: scale(0.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
       `}</style>
 
-      {isMobile && sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 10 }} />
-      )}
+      {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 10 }} />}
 
       {/* SIDEBAR */}
       <div style={{ width: "280px", minWidth: "280px", background: "#0d0d0d", borderRight: "1px solid #1a1a1a", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 20, position: isMobile ? "fixed" : "relative", top: 0, left: 0, height: "100vh", transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "translateX(0)", transition: "transform 0.3s ease" }}>
@@ -269,12 +316,10 @@ function ChatApp() {
               <div style={{ width: "30px", height: "30px", background: "#1a1a1a", border: "1px solid #333", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>✦</div>
               <div>
                 <div style={{ fontWeight: "600", fontSize: "13px", color: "#fff" }}>CDO Boys</div>
-                <div style={{ fontSize: "10px", color: "#555" }}>Powered by Llama Free</div>
+                <div style={{ fontSize: "10px", color: "#555" }}>Multi-Model AI</div>
               </div>
             </div>
-            {isMobile && (
-              <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#666", fontSize: "20px", cursor: "pointer" }}>✕</button>
-            )}
+            {isMobile && <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "#666", fontSize: "20px", cursor: "pointer" }}>✕</button>}
           </div>
           <button onClick={() => { setMessage(""); setReplies([]); setError(""); setActiveHistory(null); if (isMobile) setSidebarOpen(false); }} style={{ width: "100%", padding: "8px 0", background: "#111", border: "1px solid #2a2a2a", color: "#aaa", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>+ New Chat</button>
         </div>
@@ -344,7 +389,6 @@ function ChatApp() {
 
       {/* MAIN */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
-        {/* TOP BAR */}
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #1a1a1a", display: "flex", alignItems: "center", gap: "12px", background: "#0a0a0a", position: "sticky", top: 0, zIndex: 5 }}>
           <button onClick={() => setSidebarOpen(s => !s)} style={{ background: "#111", border: "1px solid #2a2a2a", color: "#888", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "16px" }}>☰</button>
           <div style={{ flex: 1 }}>
@@ -355,12 +399,11 @@ function ChatApp() {
           </div>
           <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: "6px", padding: "5px 10px", display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
             <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80" }} />
-            <span style={{ fontFamily: "monospace", fontSize: "10px", color: "#888" }}>llama-free</span>
+            <span style={{ fontFamily: "monospace", fontSize: "10px", color: "#888" }}>multi-model</span>
           </div>
         </div>
 
         <div style={{ padding: isMobile ? "16px" : "24px 40px", flex: 1 }}>
-
           <PresenceBar currentUser={currentUser} onlineUsers={onlineUsers} />
 
           {/* Input Card */}
@@ -406,7 +449,7 @@ function ChatApp() {
               <AIModelSelector value={selectedModel} onChange={setSelectedModel} />
             </div>
 
-            {/* Generate button */}
+            {/* Generate */}
             <div style={{ display: "flex", justifyContent: isMobile ? "center" : "flex-end" }}>
               <button onClick={generate} disabled={loading || !message.trim()} style={{ background: loading || !message.trim() ? "#1a1a1a" : "#e0e0e0", border: "1px solid " + (loading || !message.trim() ? "#2a2a2a" : "#e0e0e0"), color: loading || !message.trim() ? "#555" : "#000", borderRadius: "6px", padding: "12px 28px", cursor: loading || !message.trim() ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "monospace", letterSpacing: "1px", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s", width: isMobile ? "100%" : "auto", justifyContent: "center" }}>
                 {loading ? (<><span style={{ width: "12px", height: "12px", border: "2px solid #33333388", borderTopColor: "#888", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />GENERATING...</>) : "✦ GENERATE REPLIES"}
@@ -452,13 +495,11 @@ function ChatApp() {
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
-
   useEffect(() => {
     const onHash = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-
   if (hash === "#/app") return <ChatApp />;
   return <Landing />;
 }
